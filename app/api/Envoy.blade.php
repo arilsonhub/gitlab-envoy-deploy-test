@@ -41,7 +41,6 @@
     ln -nfs {{ $common_api_env_dir }} {{ $api_new_release_env_file }}
     echo "Starting API Build"
     composer install --no-dev --prefer-dist --no-scripts -o
-    composer install --prefer-dist --no-scripts -o
     echo "API - Removing cache dir"
     rm -rf bootstrap/cache
     echo "API - Recreating cache dir"
