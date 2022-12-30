@@ -1,0 +1,35 @@
+image: php:8.1.2
+
+before_script:
+  # Install PHP and composer dependencies
+  - apt-get update
+  - apt-get install -qq curl libbz2-dev libzip-dev
+  # Install needed extensions
+  - docker-php-ext-install zip
+  # Install Composer
+  - curl --silent --show-error https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer --version=2.2.6
+
+stages:
+  - deploy
+
+.init_ssh: &init_ssh |
+  which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )
+  eval $(ssh-agent -s)
+  ssh-add <(echo "$SSH_PRIVATE_KEY")
+  mkdir -p ~/.ssh
+  chmod 700 ~/.ssh
+  ssh-keyscan product-stage >> ~/.ssh/known_hosts
+  chmod 644 ~/.ssh/known_hosts
+
+deploy_stage:
+  stage: deploy
+  script:
+    - *init_ssh
+    - cd app/api
+    - composer install
+    - ./vendor/bin/envoy run deploy-stage --branch=main --ci_token=$GITLAB_CI_TOKEN
+  environment:
+    name: stage
+    url: http://localhost:4001
+  only:
+    - main

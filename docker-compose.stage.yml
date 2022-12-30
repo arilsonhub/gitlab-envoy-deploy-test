@@ -1,0 +1,67 @@
+version: '3.4'
+
+volumes:
+  acme-product-multiempresa-data: {}
+  acme-tenant-multiempresa-data: {}
+
+networks:
+  acme-product-net:
+    driver: bridge
+
+services:
+    product-stage:
+      build:
+        context: ./
+        dockerfile: ./infra/Dockerfile
+      networks:
+         - acme-product-net
+      volumes:
+        - ./infra/stage/virtualHost.conf:/etc/apache2/sites-available/000-default.conf
+        - ./infra/stage/ssh:/home/deployer/.ssh
+        - /opt/product:/opt/product
+      depends_on:
+        - acme-product-config-database
+      ports:
+        - "4001:80"
+        - "4000:81"
+        - "22:22"
+
+    acme-product-config-database:
+        image: postgres:14.2
+        restart: on-failure
+        networks:
+            - acme-product-net
+        volumes:
+            - acme-product-multiempresa-data:/var/lib/postgresql/data
+        environment:
+            POSTGRES_USER: acme-product
+            POSTGRES_PASSWORD: acme-product
+            POSTGRES_DB: acme-product-config
+            POSTGRES_INITDB_ARGS: --auth-host=md5 --auth-local=md5
+        ports:
+            - "4002:5432"
+        healthcheck:
+            test: ["CMD", "pg_isready", "-U", "acme-product"]
+            interval: 30s
+            timeout: 30s
+            retries: 3
+
+    acme-tenant-database:
+        image: postgres:14.2
+        restart: on-failure
+        networks:
+            - acme-product-net
+        volumes:
+            - acme-tenant-multiempresa-data:/var/lib/postgresql/data
+        environment:
+            POSTGRES_USER: acme-tenant
+            POSTGRES_PASSWORD: acme-tenant
+            POSTGRES_DB: acme-tenant
+            POSTGRES_INITDB_ARGS: --auth-host=md5 --auth-local=md5
+        ports:
+            - "4003:5432"
+        healthcheck:
+            test: ["CMD", "pg_isready", "-U", "acme-tenant"]
+            interval: 30s
+            timeout: 30s
+            retries: 3
