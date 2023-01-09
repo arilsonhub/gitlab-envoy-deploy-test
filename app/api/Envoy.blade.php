@@ -1,11 +1,9 @@
-@servers(['stage' => 'deployer@product-stage'])
+@servers(['stage' => 'deployer@acme-stage'])
 
 @setup
-    $repository = 'http://gitlab-ci-token:' . $ci_token . '@gitlab-server/gitlab-instance-151284ce/product-acme.git';
-    $apache_web_dir = '/var/www/html';
-    $apache_api_public_dir = '/var/www/html1/public';
-    $releases_dir = '/opt/product/releases';
-    $app_dir = '/opt/product';
+    $repository = 'http://gitlab-ci-token:' . $ci_token . '@gitlab-server/office/acme.git';
+    $releases_dir = '/opt/acme/releases';
+    $app_dir = '/opt/acme';
     $release = date('YmdHis');
     $common_web_env_dir = $app_dir . '/common/web/.env';
     $common_api_env_dir = $app_dir . '/common/api/.env';
@@ -24,6 +22,7 @@
     build_api
     build_web
     update_release_symlinks
+    remove_previous_releases
 @endstory
 
 @task('clone_repository')
@@ -58,10 +57,6 @@
     npm install
     echo "Starting Web build"
     npm run build
-    echo "remove current build"
-    rm -rf {{ $apache_web_dir }}/*
-    echo "move new build files"
-    mv dist/* {{ $apache_web_dir }}
 @endtask
 
 @task('update_release_symlinks')
@@ -71,10 +66,15 @@
 
     echo 'Linking current release'
     ln -nfs {{ $new_release_dir }}/* {{ $app_current_release_dir }}
+@endtask
 
-    echo 'Linking apache API document root'
-    ln -nfs {{ $api_new_release_dir }}/public/* {{ $apache_api_public_dir }}
-
-    echo 'Linking API .htaccess'
-    ln -nfs {{ $api_new_release_dir }}/public/.htaccess {{ $apache_api_public_dir }}/.htaccess
+@task('remove_previous_releases')
+    echo "Removing previous releases"
+    cd {{ $releases_dir }}
+    FILES=`ls -d * | grep -v {{ $release }}`
+    for FILE in $FILES
+    do
+        echo "Removing $FILE..."
+        rm -rf $FILE
+    done
 @endtask
